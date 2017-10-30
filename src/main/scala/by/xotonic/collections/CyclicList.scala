@@ -1,17 +1,19 @@
 package by.xotonic.collections
 
 import com.typesafe.scalalogging.StrictLogging
+import org.scalactic.Snapshots
+import scala.annotation.tailrec
 
 /**
   * Cyclic list
   */
-class CyclicList[T <: Any]() extends StrictLogging {
+class CyclicList[T <: Any]() extends StrictLogging with Snapshots {
 
 
   private var head: Option[Node[T]] = Option.empty
 
 
-  def add(x: T, pos: Int = 0) = head match {
+  def prepend(x: T, pos: Int = 0) = head match {
 
     case None =>
 
@@ -19,23 +21,47 @@ class CyclicList[T <: Any]() extends StrictLogging {
 
       val reallyFirst = new Node[T](x)
       head = Some(reallyFirst)
+      logger.debug(head.toString)
 
-    case Some(firstNode) =>
+    case Some(theHead) =>
 
-      walkToPosition( (_, node) => {
-        logger.debug(s"Adding $x before ${node.next.data}")
+
+
+      walkToPosition((prev, node) => {
+        logger.debug(s"Adding $x after $node")
 
         val newNode = new Node[T](x)
         newNode.next = node.next
         node.next = newNode
-      }, pos, firstNode)
+
+        logger.debug(s" new node: $newNode, changed node: $node, head: $head")
+
+      }, pos, theHead)
   }
 
-  /* todo удалить Option , тк индекс всегда ходит по кругу */
+  def add(x: T) = head match {
+    case None => head = Some(new Node[T](x))
+    case Some(theHead) =>
 
-  def get(pos: Int): Option[T] = head flatMap(firstNode => {
-    Some(walkToPosition((_, node) => node.data, pos, firstNode))
-  })
+      val newNode = new Node[T](x)
+      newNode.prev = theHead.prev
+      theHead.prev.next = newNode
+      newNode.next = theHead
+      theHead.prev = newNode
+
+      if (theHead.next == theHead) {
+        theHead.next = newNode
+      }
+
+      logger.debug(s"new=$newNode head=$theHead")
+
+  }
+
+  def apply(pos: Int): Option[T] = head flatMap {
+    firstNode => {
+      Some(walkToPosition((_, node) => node.data, pos, firstNode))
+    }
+  }
 
 
   /**
@@ -60,31 +86,47 @@ class CyclicList[T <: Any]() extends StrictLogging {
     * @param x index of element to remove
     */
   def remove(x: Int) =  if (head.nonEmpty)
+
     walkToPosition((prev, node) => {
       logger.debug(s"Removing ${node.data} : ${prev.data}.next = ${node.next.data}.next")
       prev.next = node.next
+      node.prev = prev.prev
     }, x, head.get)
 
 
   /**
     * Sorts cyclic list
     */
-  def sort() = {
-
-  }
+  def sort() = None
 
 
-  private def walkToPosition[R](fun : (Node[T], Node[T]) => R , pos: Int,
-                        node: Node[T] = head.get, prev: Node[T] = head.get, cur: Int = 0
-                       ) : R =
+  @tailrec final def walkToPosition[R](fun : (Node[T], Node[T]) => R,
+                                       pos: Int,
+                                       node: Node[T] = head.get,
+                                       prev: Node[T] = head.get,
+                                       cur: Int = 0) : R =
   {
-
-    logger.debug(s"Walk step: node : ${node.data}, cur : $cur")
+    logger.debug(s"Walk step: ${snap(pos, node, prev, cur)}")
 
     if (cur == pos)
       fun(prev, node)
     else
       walkToPosition(fun, pos, node.next, node, cur + 1)
   }
+
+  final def foreach(fun: Node[T] => Unit) =
+  {
+    @tailrec def it(node: Node[T], stopNode: Node[T], start: Boolean) : Unit =
+    {
+      logger.debug(s"Step: ${snap(node, stopNode, start)}")
+      if (node != stopNode || start) {
+        fun(node)
+        it(node.next, stopNode, start = false)
+      }
+    }
+
+    head.foreach(h => it(h, h, start = true))
+  }
+
 
 }
