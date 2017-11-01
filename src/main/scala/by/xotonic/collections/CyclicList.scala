@@ -2,6 +2,7 @@ package by.xotonic.collections
 
 import com.typesafe.scalalogging.StrictLogging
 import org.scalactic.Snapshots
+
 import scala.annotation.tailrec
 
 /**
@@ -85,26 +86,26 @@ class CyclicList[T <: Any]() extends StrictLogging with Snapshots {
     *
     * @param x index of element to remove
     */
-  def remove(x: Int) =  if (head.nonEmpty)
+  def remove(x: Int) = head.foreach(theHead => {
 
     if (x == 0) {
-      head.get.prev.next = head.get.next
-      head = Some(head.get.next)
+      theHead.prev.next = theHead.next
+      head = Some(theHead.next)
     }
-      else
-    walkToPosition((prev, node) => {
-      logger.debug(s"Removing ${node.data} : ${prev.data}.next = ${node.next.data}.next")
-      prev.next = node.next
-      node.prev = prev.prev
-    }, x, head.get)
+    else
+      walkToPosition((prev, node) => {
+        logger.debug(s"Removing ${node.data} : ${prev.data}.next = ${node.next.data}.next")
+        prev.next = node.next
+        node.prev = prev.prev
+      }, x, theHead)
+  })
 
 
-  @tailrec final def walkToPosition[R](fun : (Node[T], Node[T]) => R,
+  @tailrec final def walkToPosition[R](fun: (Node[T], Node[T]) => R,
                                        pos: Int,
                                        node: Node[T] = head.get,
                                        prev: Node[T] = head.get,
-                                       cur: Int = 0) : R =
-  {
+                                       cur: Int = 0): R = {
     logger.debug(s"Walk step: ${snap(pos, node, prev, cur)}")
 
     if (cur == pos)
@@ -113,10 +114,8 @@ class CyclicList[T <: Any]() extends StrictLogging with Snapshots {
       walkToPosition(fun, pos, node.next, node, cur + 1)
   }
 
-  final def foreach(fun: Node[T] => Unit) =
-  {
-    @tailrec def it(node: Node[T], stopNode: Node[T], start: Boolean) : Unit =
-    {
+  final def foreach(fun: Node[T] => Unit) = {
+    @tailrec def it(node: Node[T], stopNode: Node[T], start: Boolean): Unit = {
       logger.debug(s"Step: ${snap(node, stopNode, start)}")
       if (node != stopNode || start) {
         fun(node)
