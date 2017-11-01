@@ -69,7 +69,7 @@ class CyclicListTest extends FlatSpec with Matchers with StrictLogging {
 
   }
 
-  "Remove in 0" should "work like a nigga" ignore {
+  "Remove in 0" should "work like a nigga" in {
 
     val c = new CyclicList[String]
     c.add("0")

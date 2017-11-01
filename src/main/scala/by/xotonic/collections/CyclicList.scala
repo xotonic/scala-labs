@@ -87,17 +87,16 @@ class CyclicList[T <: Any]() extends StrictLogging with Snapshots {
     */
   def remove(x: Int) =  if (head.nonEmpty)
 
+    if (x == 0) {
+      head.get.prev.next = head.get.next
+      head = Some(head.get.next)
+    }
+      else
     walkToPosition((prev, node) => {
       logger.debug(s"Removing ${node.data} : ${prev.data}.next = ${node.next.data}.next")
       prev.next = node.next
       node.prev = prev.prev
     }, x, head.get)
-
-
-  /**
-    * Sorts cyclic list
-    */
-  def sort() = None
 
 
   @tailrec final def walkToPosition[R](fun : (Node[T], Node[T]) => R,
