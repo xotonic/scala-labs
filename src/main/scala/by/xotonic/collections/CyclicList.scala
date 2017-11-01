@@ -8,11 +8,60 @@ import scala.annotation.tailrec
 /**
   * Cyclic list
   */
-class CyclicList[T <: Any]() extends StrictLogging with Snapshots {
+class CyclicList[T]() extends StrictLogging with Snapshots {
 
 
   private var head: Option[Node[T]] = Option.empty
 
+
+
+  def sort(cmp : (T,T) => Int) : CyclicList[T] = {
+
+    logger.debug("Sorting")
+
+    var c = new CyclicList[T]
+
+    if (isEmpty) {
+      logger.debug("Collection is empty")
+      return c
+    }
+
+    if (head.get.prev == head.get) {
+      logger.debug(s"Collection has only head: ${head.get}")
+      c.add(head.get.data)
+      return c
+    }
+
+    val x = apply(0).get
+    var c2 = new CyclicList[T]
+    var c3 = new CyclicList[T]
+
+    foreachValue(i => {
+      val y = cmp(i, x)
+      if (y < 0) c.add(i)
+      else if (y == 0) c2.add(i)
+      else c3.add(i)
+    })
+
+    c = c.sort(cmp)
+    c2 = c2.sort(cmp)
+    c3 = c3.sort(cmp)
+
+    c2.foreachValue(i => c.add(i))
+    c3.foreachValue(i => c.add(i))
+
+    logger.debug(s"Sort step: ${snap(c, c2, c3, x, head)}")
+    c
+  }
+
+
+  override def toString: String = {
+    val sb = new StringBuilder
+    sb.append("[")
+    foreachValue(v => sb.append(v).append(","))
+    sb.append("]")
+    sb.toString
+  }
 
   def prepend(x: T, pos: Int = 0) = head match {
 
@@ -41,7 +90,7 @@ class CyclicList[T <: Any]() extends StrictLogging with Snapshots {
   }
 
   def add(x: T) = head match {
-    case None => head = Some(new Node[T](x))
+    case None => logger.debug(s"Set $x as head");  head = Some(new Node[T](x))
     case Some(theHead) =>
 
       val newNode = new Node[T](x)
@@ -58,6 +107,11 @@ class CyclicList[T <: Any]() extends StrictLogging with Snapshots {
 
   }
 
+  /**
+    * Get element by position relative the head
+    * @param pos position
+    * @return
+    */
   def apply(pos: Int): Option[T] = head flatMap {
     firstNode => {
       Some(walkToPosition((_, node) => node.data, pos, firstNode))
@@ -106,7 +160,7 @@ class CyclicList[T <: Any]() extends StrictLogging with Snapshots {
                                        node: Node[T] = head.get,
                                        prev: Node[T] = head.get,
                                        cur: Int = 0): R = {
-    logger.debug(s"Walk step: ${snap(pos, node, prev, cur)}")
+    // logger.debug(s"Walk step: ${snap(pos, node, prev, cur)}")
 
     if (cur == pos)
       fun(prev, node)
@@ -116,13 +170,24 @@ class CyclicList[T <: Any]() extends StrictLogging with Snapshots {
 
   final def foreach(fun: Node[T] => Unit) = {
     @tailrec def it(node: Node[T], stopNode: Node[T], start: Boolean): Unit = {
-      logger.debug(s"Step: ${snap(node, stopNode, start)}")
+      // logger.debug(s"Step: ${snap(node, stopNode, start)}")
       if (node != stopNode || start) {
         fun(node)
         it(node.next, stopNode, start = false)
       }
     }
 
+    head.foreach(h => it(h, h, start = true))
+  }
+
+  final def foreachValue(fun: T => Unit) = {
+    @tailrec def it(node: Node[T], stopNode: Node[T], start: Boolean): Unit = {
+      // logger.debug(s"Step: ${snap(node, stopNode, start)}")
+      if (node != stopNode || start) {
+        fun(node.data)
+        it(node.next, stopNode, start = false)
+      }
+    }
     head.foreach(h => it(h, h, start = true))
   }
 

@@ -3,7 +3,7 @@ package by.xotonic.collections
 /**
   * Created by xoton on 07.10.2017.
   */
-class Node[T <: Any](initData: T)
+class Node[T](initData: T)
 {
   var next : Node[T] = this
   var prev : Node[T] = this
